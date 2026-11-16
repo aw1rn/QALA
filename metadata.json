@@ -1,0 +1,10 @@
+{
+  "name": "QALA — городской супер-сервис Астаны",
+  "description": "Карта Астаны, жильё Qala Үй, Market, Delivery, Qala TV, Qino, киноафиша и Qala AI в одном приложении.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

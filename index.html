@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>QALA — Городской супер-сервис в стиле Liquid Glass</title>
+    <meta
+      name="description"
+      content="QALA — десктопная и мобильная платформа города Астана в стиле Liquid Glass: карта, жильё, маркет, доставка, ТВ, кино, финансы и Qala AI."
+    />
+    <meta name="theme-color" content="#dcebfa" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="QALA" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta property="og:title" content="QALA — Городской супер-сервис" />
+    <meta
+      property="og:description"
+      content="Карта Астаны, жильё Qala Үй, объявления Market, маршруты Delivery, Qala TV, киноафиша и Qala AI в стиле Liquid Glass."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body class="text-slate-900 antialiased selection:bg-sky-500/20 selection:text-slate-950">
+    <div id="root">
+      <div id="qala-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(160deg,#eaf3fd 0%,#dcebfa 55%,#c9ddf6 100%);font-family:Manrope,system-ui,sans-serif">
+        <img src="/pwa-192x192.png" width="96" height="96" alt="" style="border-radius:24px;box-shadow:0 12px 32px rgba(37,99,235,.25)" />
+        <div style="font-weight:800;font-size:30px;letter-spacing:.14em;color:#0f172a">QALA</div>
+        <div style="width:28px;height:28px;border:3px solid rgba(37,99,235,.2);border-top-color:#2563eb;border-radius:50%;animation:qala-spin .8s linear infinite"></div>
+      </div>
+    </div>
+    <style>@keyframes qala-spin{to{transform:rotate(360deg)}}</style>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
