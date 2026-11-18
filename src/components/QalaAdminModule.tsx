@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { M3uSource, TvChannel } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 interface QalaAdminModuleProps {
   onPlayChannel?: (channel: TvChannel) => void;
@@ -61,7 +62,7 @@ export function QalaAdminModule({
   const [chRegional, setChRegional] = useState(false);
 
   useEffect(() => {
-    fetch('/api/admin/pin/status')
+    fetch(`${API_BASE}/api/admin/pin/status`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { isDefault?: boolean } | null) => {
         if (d && typeof d.isDefault === 'boolean') {
@@ -73,7 +74,7 @@ export function QalaAdminModule({
 
   const verifyPin = async (pinToCheck: string) => {
     setPinError(null);
-    const res = await fetch('/api/admin/pin/verify', {
+    const res = await fetch(`${API_BASE}/api/admin/pin/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: pinToCheck }),
@@ -90,7 +91,7 @@ export function QalaAdminModule({
 
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/admin/pin', {
+    const res = await fetch(`${API_BASE}/api/admin/pin`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPin: currentPinForChange, newPin: newPinInput }),
@@ -111,8 +112,8 @@ export function QalaAdminModule({
     setLoading(true);
     try {
       const [chRes, m3uRes] = await Promise.all([
-        fetch('/api/tv/channels?all=1'),
-        fetch('/api/tv/m3u'),
+        fetch(`${API_BASE}/api/tv/channels?all=1`),
+        fetch(`${API_BASE}/api/tv/m3u`),
       ]);
       if (chRes.ok) {
         const d = (await chRes.json()) as { channels: TvChannel[] };
@@ -139,7 +140,7 @@ export function QalaAdminModule({
     }
     setBusyAction('import-m3u');
     try {
-      const res = await fetch('/api/tv/m3u/import', {
+      const res = await fetch(`${API_BASE}/api/tv/m3u/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,7 +172,7 @@ export function QalaAdminModule({
   const handleImportKzFree = async () => {
     setBusyAction('import-kz');
     try {
-      const res = await fetch('/api/tv/m3u/import-kz-free', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/tv/m3u/import-kz-free`, { method: 'POST' });
       const data = (await res.json()) as {
         ok?: boolean;
         importedCount?: number;
@@ -194,7 +195,7 @@ export function QalaAdminModule({
     if (!src.url) return;
     setBusyAction(`sync-${src.id}`);
     try {
-      const res = await fetch('/api/tv/m3u/import', {
+      const res = await fetch(`${API_BASE}/api/tv/m3u/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: src.name, url: src.url }),
@@ -215,7 +216,7 @@ export function QalaAdminModule({
   const handleDeleteSource = async (src: M3uSource) => {
     setBusyAction(`del-src-${src.id}`);
     try {
-      await fetch(`/api/tv/m3u/${encodeURIComponent(src.id)}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/tv/m3u/${encodeURIComponent(src.id)}`, { method: 'DELETE' });
       await loadAdminData();
       onChannelsUpdated?.();
       onNotify?.(`Плейлист «${src.name}» и его каналы удалены`);
@@ -236,7 +237,7 @@ export function QalaAdminModule({
       if (chUrl720.trim()) qualityStreams['720p'] = chUrl720.trim();
       if (chUrl1080.trim()) qualityStreams['1080p'] = chUrl1080.trim();
 
-      const res = await fetch('/api/tv/channels', {
+      const res = await fetch(`${API_BASE}/api/tv/channels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,7 +267,7 @@ export function QalaAdminModule({
   };
 
   const handleToggleChannelActive = async (ch: TvChannel) => {
-    await fetch(`/api/tv/channels/${encodeURIComponent(ch.id)}`, {
+    await fetch(`${API_BASE}/api/tv/channels/${encodeURIComponent(ch.id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: ch.isActive === false }),
@@ -276,7 +277,7 @@ export function QalaAdminModule({
   };
 
   const handleDeleteChannel = async (ch: TvChannel) => {
-    await fetch(`/api/tv/channels/${encodeURIComponent(ch.id)}`, {
+    await fetch(`${API_BASE}/api/tv/channels/${encodeURIComponent(ch.id)}`, {
       method: 'DELETE',
     });
     await loadAdminData();
@@ -395,7 +396,7 @@ export function QalaAdminModule({
             </button>
 
             <a
-              href="/api/tv/export.m3u"
+              href={`${API_BASE}/api/tv/export.m3u`}
               download="qala-kz-tv.m3u"
               className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/75 px-3.5 py-2.5 text-xs font-semibold text-slate-900 shadow-xs hover:bg-white whitespace-nowrap"
             >
@@ -404,7 +405,7 @@ export function QalaAdminModule({
             </a>
 
             <a
-              href="/api/download-source"
+              href={`${API_BASE}/api/download-source`}
               download="qala-project-source.zip"
               className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 whitespace-nowrap"
             >

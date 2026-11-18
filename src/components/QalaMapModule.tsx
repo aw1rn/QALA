@@ -75,6 +75,7 @@ import type {
 } from '../types/qala';
 import { AstanaMap, type SelectedMapFeature } from './AstanaMap';
 import { QALAKARTA_THEMES, QalaKartaCanvas } from './QalaKartaCanvas';
+import { API_BASE } from '../apiBase';
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -283,7 +284,7 @@ export function QalaMapModule({
   }, [qkTheme]);
 
   useEffect(() => {
-    fetch('/api/qalakarta/stats')
+    fetch(`${API_BASE}/api/qalakarta/stats`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: QalaKartaStats | null) => {
         if (d?.isReady) setQkStats(d);
@@ -365,7 +366,7 @@ export function QalaMapModule({
 
   const loadBookmarks = useCallback(async () => {
     try {
-      const r = await fetch('/api/map/bookmarks');
+      const r = await fetch(`${API_BASE}/api/map/bookmarks`);
       if (r.ok) {
         const d = (await r.json()) as { bookmarks?: MapBookmark[] };
         setBookmarks(d.bookmarks || []);
@@ -377,7 +378,7 @@ export function QalaMapModule({
 
   const loadRouteHistory = useCallback(async () => {
     try {
-      const r = await fetch('/api/map/routes/history');
+      const r = await fetch(`${API_BASE}/api/map/routes/history`);
       if (r.ok) {
         const d = (await r.json()) as {
           routes?: RouteHistoryItem[];
@@ -392,7 +393,7 @@ export function QalaMapModule({
 
   const loadMapNotes = useCallback(async () => {
     try {
-      const r = await fetch('/api/map/notes');
+      const r = await fetch(`${API_BASE}/api/map/notes`);
       if (r.ok) {
         const d = (await r.json()) as { notes?: MapNote[] };
         setMapNotes(d.notes || []);
@@ -404,7 +405,7 @@ export function QalaMapModule({
 
   const loadParkingSessions = useCallback(async () => {
     try {
-      const r = await fetch('/api/parking/sessions');
+      const r = await fetch(`${API_BASE}/api/parking/sessions`);
       if (r.ok) {
         const d = (await r.json()) as { sessions?: ParkingSession[] };
         setParkingSessions(d.sessions || []);
@@ -416,7 +417,7 @@ export function QalaMapModule({
 
   const loadAvtobys = useCallback(async () => {
     try {
-      const r = await fetch('/api/avtobys');
+      const r = await fetch(`${API_BASE}/api/avtobys`);
       if (r.ok) {
         setAvtobys((await r.json()) as AvtobysState);
       }
@@ -426,7 +427,7 @@ export function QalaMapModule({
   }, []);
 
   useEffect(() => {
-    fetch('/api/map/layers')
+    fetch(`${API_BASE}/api/map/layers`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: AstanaMapLayers | null) => {
         if (data) {
@@ -437,7 +438,7 @@ export function QalaMapModule({
         }
       })
       .catch(() => {});
-    fetch('/api/map/tomtom/incidents')
+    fetch(`${API_BASE}/api/map/tomtom/incidents`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { incidents?: TomTomIncident[] } | null) => {
         if (data?.incidents) setIncidents(data.incidents);
@@ -461,7 +462,7 @@ export function QalaMapModule({
     setGeoSearching(true);
     const t = window.setTimeout(async () => {
       try {
-        const res = await fetch(`/api/geo/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${API_BASE}/api/geo/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
           const data = (await res.json()) as { results?: GeoSearchResult[] };
           setGeoResults(data.results || []);
@@ -594,7 +595,7 @@ export function QalaMapModule({
               [from.lat, from.lng],
               [to.lat, to.lng],
             ];
-        const res = await fetch('/api/route', {
+        const res = await fetch(`${API_BASE}/api/route`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ points: pts }),
@@ -634,7 +635,7 @@ export function QalaMapModule({
       tripMode: 'taxi' | 'car' | 'bus' = 'taxi'
     ) => {
       try {
-        await fetch('/api/map/routes/history', {
+        await fetch(`${API_BASE}/api/map/routes/history`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -802,7 +803,7 @@ export function QalaMapModule({
   const handleStartParkingTimer = useCallback(
     async (title: string, zone: string, pricePerHour: number, durationMin: number) => {
       try {
-        const res = await fetch('/api/parking/sessions', {
+        const res = await fetch(`${API_BASE}/api/parking/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -826,7 +827,7 @@ export function QalaMapModule({
 
   const handleExtendParking = useCallback(
     async (sessionId: string, extendMin: number) => {
-      const res = await fetch(`/api/parking/sessions/${encodeURIComponent(sessionId)}`, {
+      const res = await fetch(`${API_BASE}/api/parking/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extendMin }),
@@ -842,7 +843,7 @@ export function QalaMapModule({
 
   const handleStopParking = useCallback(
     async (sessionId: string) => {
-      const res = await fetch(`/api/parking/sessions/${encodeURIComponent(sessionId)}`, {
+      const res = await fetch(`${API_BASE}/api/parking/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: false }),
@@ -866,7 +867,7 @@ export function QalaMapModule({
               routeTitle: selectedBusRoute?.route || 'Маршрут по Астане',
               fare: 110,
             };
-      const res = await fetch('/api/avtobys', {
+      const res = await fetch(`${API_BASE}/api/avtobys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -895,7 +896,7 @@ export function QalaMapModule({
   const handleSaveBookmark = useCallback(
     async (label: string, kind: BookmarkKind, address: string, lat: number, lng: number) => {
       try {
-        const res = await fetch('/api/map/bookmarks', {
+        const res = await fetch(`${API_BASE}/api/map/bookmarks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ label, kind, address, lat, lng }),
@@ -916,7 +917,7 @@ export function QalaMapModule({
   const handleDeleteBookmark = useCallback(
     async (id: string, label: string) => {
       try {
-        await fetch(`/api/map/bookmarks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/map/bookmarks/${encodeURIComponent(id)}`, { method: 'DELETE' });
         await loadBookmarks();
         onNotify(`Закладка «${label}» удалена`);
       } catch {
@@ -944,7 +945,7 @@ export function QalaMapModule({
     const coords = effectiveLocation || mapCenter;
     const address =
       currentLocation?.address || `Астана (${coords[0].toFixed(4)}, ${coords[1].toFixed(4)})`;
-    const res = await fetch('/api/map/notes', {
+    const res = await fetch(`${API_BASE}/api/map/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -977,7 +978,7 @@ export function QalaMapModule({
       lat: number,
       lng: number
     ) => {
-      const res = await fetch('/api/map/notes', {
+      const res = await fetch(`${API_BASE}/api/map/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1002,7 +1003,7 @@ export function QalaMapModule({
 
   const handleDeleteMapNote = useCallback(
     async (id: string) => {
-      await fetch(`/api/map/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/map/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
       await loadMapNotes();
     },
     [loadMapNotes]
@@ -1468,7 +1469,7 @@ export function QalaMapModule({
       let resolvedLandmark = '';
       try {
         const revRes = await fetch(
-          `/api/geo/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
+          `${API_BASE}/api/geo/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
         );
         if (revRes.ok) {
           const rev = (await revRes.json()) as {
@@ -2650,7 +2651,7 @@ export function QalaMapModule({
                         <button
                           type="button"
                           onClick={async () => {
-                            await fetch(`/api/map/routes/history/${encodeURIComponent(h.id)}`, {
+                            await fetch(`${API_BASE}/api/map/routes/history/${encodeURIComponent(h.id)}`, {
                               method: 'DELETE',
                             });
                             await loadRouteHistory();

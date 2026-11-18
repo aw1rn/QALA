@@ -26,6 +26,7 @@ import type {
   TrafficSegment,
 } from '../types/qala';
 import type { SelectedMapFeature } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 const LAT0 = 51.1283;
 const LON0 = 71.4305;
@@ -383,7 +384,7 @@ export function QalaKartaCanvas({
         signs: showRoadSigns ? '1' : '0',
         places: showQalaPlaces ? '1' : '0',
       });
-      const res = await fetch(`/api/qalakarta/viewport?${qs.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/qalakarta/viewport?${qs.toString()}`, {
         signal: ctrl.signal,
       });
       if (!res.ok) return;

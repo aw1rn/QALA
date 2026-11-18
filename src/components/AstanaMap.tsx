@@ -20,6 +20,7 @@ import type {
   TomTomIncident,
   TrafficSegment,
 } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 export interface SelectedMapFeature {
   kind: 'parking' | 'bus' | 'camera' | 'trafficLight' | 'place' | 'noParking' | 'incident';
@@ -177,7 +178,7 @@ export function AstanaMap({
     if (!map) return;
     if (tomtomLiveEnabled) {
       if (!tomtomLayerRef.current) {
-        tomtomLayerRef.current = L.tileLayer('/api/map/tomtom/tile/{z}/{x}/{y}.png', {
+        tomtomLayerRef.current = L.tileLayer(`${API_BASE}/api/map/tomtom/tile/{z}/{x}/{y}.png`, {
           opacity: 0.82,
           maxZoom: 18,
           minZoom: 10,

@@ -41,6 +41,7 @@ import type {
   QalaSection,
   WalletTransaction,
 } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -206,7 +207,7 @@ export function QalaAiModule({
 
     setIsLoading(true);
     try {
-      const res = await fetch('/api/ai/ask', {
+      const res = await fetch(`${API_BASE}/api/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: clean }),
@@ -703,7 +704,7 @@ export function QalaWalletModule({
   const [billTipPct, setBillTipPct] = useState('10');
 
   useEffect(() => {
-    fetch('/api/wallet/budget')
+    fetch(`${API_BASE}/api/wallet/budget`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { budget?: number } | null) => {
         if (d?.budget && d.budget > 0) {
@@ -719,7 +720,7 @@ export function QalaWalletModule({
     const val = Math.max(1000, Number.parseInt(budgetInput, 10) || 150000);
     setMonthlyBudget(val);
     setEditingBudget(false);
-    await fetch('/api/wallet/budget', {
+    await fetch(`${API_BASE}/api/wallet/budget`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ budget: val }),
@@ -1275,8 +1276,8 @@ export function QalaOfflineModule({ onNotify }: { onNotify: (msg: string) => voi
   const performSnapshot = async () => {
     try {
       const [aptRes, bmRes] = await Promise.all([
-        fetch('/api/apartments').catch(() => null),
-        fetch('/api/map/bookmarks').catch(() => null),
+        fetch(`${API_BASE}/api/apartments`).catch(() => null),
+        fetch(`${API_BASE}/api/map/bookmarks`).catch(() => null),
       ]);
       const aptData = aptRes && aptRes.ok ? ((await aptRes.json()) as { apartments?: unknown[] }) : {};
       const bmData = bmRes && bmRes.ok ? ((await bmRes.json()) as { bookmarks?: unknown[] }) : {};
@@ -1482,7 +1483,7 @@ export function QalaIdModule({
   const [restoreJson, setRestoreJson] = useState('');
 
   const loadGarageAndZones = useCallback(async () => {
-    const [gRes, nRes] = await Promise.all([fetch('/api/garage'), fetch('/api/map/notes')]);
+    const [gRes, nRes] = await Promise.all([fetch(`${API_BASE}/api/garage`), fetch(`${API_BASE}/api/map/notes`)]);
     if (gRes.ok) {
       const gd = (await gRes.json()) as { vehicles?: GarageVehicle[] };
       setVehicles(gd.vehicles || []);
@@ -1507,7 +1508,7 @@ export function QalaIdModule({
   const handleAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!plate.trim() || !model.trim()) return;
-    const res = await fetch('/api/garage', {
+    const res = await fetch(`${API_BASE}/api/garage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1530,14 +1531,14 @@ export function QalaIdModule({
   };
 
   const handleDeleteVehicle = async (id: string) => {
-    await fetch(`/api/garage/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/garage/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadGarageAndZones();
   };
 
   const handleAddFamilyZone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!zoneTitle.trim()) return;
-    const res = await fetch('/api/map/notes', {
+    const res = await fetch(`${API_BASE}/api/map/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1558,7 +1559,7 @@ export function QalaIdModule({
   };
 
   const handleExportBackup = async () => {
-    const res = await fetch('/api/backup/export');
+    const res = await fetch(`${API_BASE}/api/backup/export`);
     if (!res.ok) return;
     const json = await res.json();
     const blob = new Blob([JSON.stringify(json, null, 2)], {
@@ -1579,7 +1580,7 @@ export function QalaIdModule({
     if (!restoreJson.trim()) return;
     try {
       const parsed = JSON.parse(restoreJson);
-      const res = await fetch('/api/backup/restore', {
+      const res = await fetch(`${API_BASE}/api/backup/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed),
@@ -1986,7 +1987,7 @@ export function QalaIdModule({
                   <button
                     type="button"
                     onClick={async () => {
-                      await fetch(`/api/map/notes/${encodeURIComponent(fz.id)}`, {
+                      await fetch(`${API_BASE}/api/map/notes/${encodeURIComponent(fz.id)}`, {
                         method: 'DELETE',
                       });
                       await loadGarageAndZones();

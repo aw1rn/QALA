@@ -31,6 +31,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getChannelEpg, KAZAKHSTAN_TV_CHANNELS } from '../data/astanaData';
 import type { TvChannel, VideoQuality } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 const QUALITY_OPTIONS: Array<{ id: VideoQuality; label: string; shortLabel: string }> = [
   { id: 'auto', label: 'Авто (HD)', shortLabel: 'Авто' },
@@ -126,9 +127,9 @@ export function QalaTvModule({
   const fetchChannelsAndMeta = useCallback(async () => {
     try {
       const [chRes, favRes, histRes] = await Promise.all([
-        fetch('/api/tv/channels'),
-        fetch('/api/tv/favorites'),
-        fetch('/api/tv/history'),
+        fetch(`${API_BASE}/api/tv/channels`),
+        fetch(`${API_BASE}/api/tv/favorites`),
+        fetch(`${API_BASE}/api/tv/history`),
       ]);
       if (chRes.ok) {
         const data = (await chRes.json()) as { channels: TvChannel[] };
@@ -276,11 +277,11 @@ export function QalaTvModule({
     const exists = favoriteIds.includes(ch.id);
     if (exists) {
       setFavoriteIds((prev) => prev.filter((id) => id !== ch.id));
-      await fetch(`/api/tv/favorites/${encodeURIComponent(ch.id)}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/tv/favorites/${encodeURIComponent(ch.id)}`, { method: 'DELETE' });
       showOsd(`${ch.name} убран из избранного`);
     } else {
       setFavoriteIds((prev) => [ch.id, ...prev]);
-      await fetch('/api/tv/favorites', {
+      await fetch(`${API_BASE}/api/tv/favorites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelId: ch.id }),
@@ -400,7 +401,7 @@ export function QalaTvModule({
 
     const isHls =
       resolvedStreamUrl.toLowerCase().includes('.m3u8') ||
-      resolvedStreamUrl.includes('/api/tv/proxy');
+      resolvedStreamUrl.includes(`${API_BASE}/api/tv/proxy`);
 
     if (!isHls) {
       video.src = resolvedStreamUrl;
@@ -415,8 +416,8 @@ export function QalaTvModule({
       useProxyStream ||
       (window.location.protocol === 'https:' && resolvedStreamUrl.startsWith('http://'));
     const initialUrl =
-      forceProxy && !resolvedStreamUrl.startsWith('/api/tv/proxy')
-        ? `/api/tv/proxy?url=${encodeURIComponent(resolvedStreamUrl)}`
+      forceProxy && !resolvedStreamUrl.startsWith(`${API_BASE}/api/tv/proxy`)
+        ? `${API_BASE}/api/tv/proxy?url=${encodeURIComponent(resolvedStreamUrl)}`
         : resolvedStreamUrl;
 
     if (Hls.isSupported()) {
@@ -464,9 +465,9 @@ export function QalaTvModule({
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
-        if (!triedProxy && !resolvedStreamUrl.startsWith('/api/tv/proxy')) {
+        if (!triedProxy && !resolvedStreamUrl.startsWith(`${API_BASE}/api/tv/proxy`)) {
           triedProxy = true;
-          hls.loadSource(`/api/tv/proxy?url=${encodeURIComponent(resolvedStreamUrl)}`);
+          hls.loadSource(`${API_BASE}/api/tv/proxy?url=${encodeURIComponent(resolvedStreamUrl)}`);
           return;
         }
         if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !mediaRecovered) {
@@ -527,7 +528,7 @@ export function QalaTvModule({
       showOsd(`${ch.name} · ${quality === 'auto' ? 'Авто' : quality}`);
 
       setHistoryIds((prev) => [ch.id, ...prev.filter((x) => x !== ch.id)].slice(0, 20));
-      fetch('/api/tv/history', {
+      fetch(`${API_BASE}/api/tv/history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelId: ch.id }),
@@ -1418,7 +1419,7 @@ export function QalaTvModule({
                           type="button"
                           disabled={reminded}
                           onClick={async () => {
-                            const res = await fetch('/api/reminders', {
+                            const res = await fetch(`${API_BASE}/api/reminders`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({

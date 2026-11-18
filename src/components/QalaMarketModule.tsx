@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { MarketListing } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 interface QalaMarketModuleProps {
   items: MarketListing[];
@@ -84,7 +85,7 @@ export function QalaMarketModule({
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    await fetch('/api/market', {
+    await fetch(`${API_BASE}/api/market`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -106,7 +107,7 @@ export function QalaMarketModule({
   };
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/market/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/market/${encodeURIComponent(id)}`, { method: 'DELETE' });
     setSelectedItem(null);
     await onRefresh();
     onNotify('Объявление удалено');
