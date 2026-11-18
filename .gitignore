@@ -6,3 +6,19 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Готовые сборки (большие бинарники — не храним в истории)
+release-exe/
+release-apk/
+dev-dist/
+
+# Личные данные приложения (профиль, кошелёк, история) — создаются при запуске
+data/qala.json
+data/qala.json.tmp
+data/*.broken-*.json
+data/qala.db*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
