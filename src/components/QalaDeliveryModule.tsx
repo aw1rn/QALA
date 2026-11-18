@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ASTANA_CENTER, ASTANA_PLACES } from '../data/astanaData';
 import type { DeliveryStop, RouteResult } from '../types/qala';
 import { AstanaMap } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 interface QalaDeliveryModuleProps {
   stops: DeliveryStop[];
@@ -28,7 +29,7 @@ export function QalaDeliveryModule({
       return;
     }
     try {
-      const res = await fetch('/api/route', {
+      const res = await fetch(`${API_BASE}/api/route`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,7 +57,7 @@ export function QalaDeliveryModule({
       p.name.toLowerCase().includes(label.toLowerCase())
     );
 
-    await fetch('/api/delivery/stops', {
+    await fetch(`${API_BASE}/api/delivery/stops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -72,7 +73,7 @@ export function QalaDeliveryModule({
   };
 
   const handleToggleDone = async (stop: DeliveryStop) => {
-    await fetch(`/api/delivery/stops/${encodeURIComponent(stop.id)}`, {
+    await fetch(`${API_BASE}/api/delivery/stops/${encodeURIComponent(stop.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ done: !stop.done }),
@@ -81,13 +82,13 @@ export function QalaDeliveryModule({
   };
 
   const handleRemoveStop = async (id: string) => {
-    await fetch(`/api/delivery/stops/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/delivery/stops/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await onRefresh();
   };
 
   const handleOptimize = async () => {
     setIsOptimizing(true);
-    await fetch('/api/delivery/optimize', { method: 'POST' });
+    await fetch(`${API_BASE}/api/delivery/optimize`, { method: 'POST' });
     await onRefresh();
     setIsOptimizing(false);
     onNotify('Маршрут оптимизирован по кратчайшему пути');

@@ -32,6 +32,7 @@ import type {
   WeeklyForecastDay,
 } from '../types/qala';
 import { AstanaMap } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 function WeatherIcon({ code }: { code: number }) {
   if (code === 0) return <Sun className="h-6 w-6 text-amber-500" />;
@@ -69,11 +70,11 @@ export function QalaTrafficModule() {
     setLoading(true);
     try {
       const [trRes, wRes, layRes, incRes, aqRes] = await Promise.all([
-        fetch('/api/traffic'),
-        fetch('/api/weather/weekly'),
-        fetch('/api/map/layers'),
-        fetch('/api/map/tomtom/incidents'),
-        fetch('/api/air-quality'),
+        fetch(`${API_BASE}/api/traffic`),
+        fetch(`${API_BASE}/api/weather/weekly`),
+        fetch(`${API_BASE}/api/map/layers`),
+        fetch(`${API_BASE}/api/map/tomtom/incidents`),
+        fetch(`${API_BASE}/api/air-quality`),
       ]);
       if (trRes.ok) {
         const tr = (await trRes.json()) as {
@@ -402,7 +403,7 @@ export function QalaTrafficModule() {
           <button
             type="button"
             onClick={async () => {
-              await fetch('/api/reminders', {
+              await fetch(`${API_BASE}/api/reminders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

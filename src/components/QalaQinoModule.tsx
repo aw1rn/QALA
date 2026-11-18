@@ -20,6 +20,7 @@ import posterOrbital from '../assets/images/poster_orbital_horizon_1794686988683
 import { ASTANA_CENTER, QINO_FEATURED_MOVIES } from '../data/astanaData';
 import type { AstanaPlace, CinemaMovie, CinemaTicket, KinoLiveMovie } from '../types/qala';
 import { AstanaMap } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 function DeterministicQrSvg({ code }: { code: string }) {
   const cells = useMemo(() => {
@@ -159,7 +160,7 @@ export function QalaQinoModule({
     setLoadingSeats(true);
     try {
       const res = await fetch(
-        `/api/cinema/seats?sessionKey=${encodeURIComponent(target.sessionKey)}`
+        `${API_BASE}/api/cinema/seats?sessionKey=${encodeURIComponent(target.sessionKey)}`
       );
       if (res.ok) {
         const d = (await res.json()) as { bookedSeats?: string[] };
@@ -205,7 +206,7 @@ export function QalaQinoModule({
     setBookingInFlight(true);
     setBookingError(null);
     try {
-      const res = await fetch('/api/cinema/seats/book', {
+      const res = await fetch(`${API_BASE}/api/cinema/seats/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +224,7 @@ export function QalaQinoModule({
       if (!res.ok) {
         setBookingError(json.error || 'Не удалось забронировать выбранные места');
         const refresh = await fetch(
-          `/api/cinema/seats?sessionKey=${encodeURIComponent(seatPicker.sessionKey)}`
+          `${API_BASE}/api/cinema/seats?sessionKey=${encodeURIComponent(seatPicker.sessionKey)}`
         );
         if (refresh.ok) {
           const rj = (await refresh.json()) as { bookedSeats?: string[] };
@@ -250,7 +251,7 @@ export function QalaQinoModule({
 
       const passCode = `QINO-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${reserved.length}`;
       try {
-        const tRes = await fetch('/api/cinema/tickets', {
+        const tRes = await fetch(`${API_BASE}/api/cinema/tickets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -298,7 +299,7 @@ export function QalaQinoModule({
 
   const loadTickets = useCallback(async () => {
     try {
-      const res = await fetch('/api/cinema/tickets');
+      const res = await fetch(`${API_BASE}/api/cinema/tickets`);
       if (res.ok) {
         const data = (await res.json()) as { tickets?: CinemaTicket[] };
         setTickets(data.tickets || []);
@@ -311,7 +312,7 @@ export function QalaQinoModule({
   const loadAfisha = useCallback(async (dateStr: string) => {
     setLoadingAfisha(true);
     try {
-      const res = await fetch(`/api/cinema/afisha?date=${encodeURIComponent(dateStr)}`);
+      const res = await fetch(`${API_BASE}/api/cinema/afisha?date=${encodeURIComponent(dateStr)}`);
       if (res.ok) {
         const data = (await res.json()) as {
           isLive?: boolean;
@@ -338,7 +339,7 @@ export function QalaQinoModule({
     setTab('search');
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/movies/search?q=${encodeURIComponent(query.trim())}`);
+      const res = await fetch(`${API_BASE}/api/movies/search?q=${encodeURIComponent(query.trim())}`);
       if (res.ok) {
         const data = (await res.json()) as { results: CinemaMovie[] };
         setSearchResults(data.results || []);
@@ -444,7 +445,7 @@ export function QalaQinoModule({
       description:
         m.description ||
         `Сеансы в кинотеатрах Астаны${firstSess ? ` · ${firstSess.cinema}` : ''}`,
-      posterUrl: m.posterUrl || posterOrbital,
+      posterUrl: m.posterUrl ? (m.posterUrl.startsWith('/api/') ? API_BASE + m.posterUrl : m.posterUrl) : posterOrbital,
       videoUrl:
         m.videoUrl ||
         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
@@ -1008,7 +1009,7 @@ export function QalaQinoModule({
                   const posterSrc =
                     movie.posterUrl && !brokenPosters[movie.id]
                       ? movie.posterUrl.startsWith('http')
-                        ? `/api/cinema/poster?url=${encodeURIComponent(movie.posterUrl)}`
+                        ? `${API_BASE}/api/cinema/poster?url=${encodeURIComponent(movie.posterUrl)}`
                         : movie.posterUrl
                       : fallbackPoster;
                   return (

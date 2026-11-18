@@ -31,7 +31,7 @@ import type {
   WalletTransaction,
 } from './src/types/qala.ts';
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'qala.db');
 
@@ -817,6 +817,22 @@ const ARCHIVE_FALLBACK_MOVIES = [
 
 async function startServer() {
   const app = express();
+
+  // Разрешаем сайту на другом адресе (например GitHub Pages) обращаться к API.
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      String(req.headers['access-control-request-headers'] || 'Content-Type, Authorization'),
+    );
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/api/health', (_req, res) => {

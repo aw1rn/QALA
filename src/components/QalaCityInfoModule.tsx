@@ -37,6 +37,7 @@ import type {
   UtilityReading,
   WalletTransaction,
 } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 type CurrencyCode = keyof ExchangeRatesData['rates'];
 const CURRENCIES: Array<{ code: CurrencyCode; label: string }> = [
@@ -137,11 +138,11 @@ export function QalaCityInfoModule({
 
   const loadAll = useCallback(async () => {
     const [rRes, remRes, uRes, ikRes, prRes] = await Promise.all([
-      fetch('/api/rates'),
-      fetch('/api/reminders'),
-      fetch('/api/utilities'),
-      fetch('/api/ikomek'),
-      fetch('/api/prayer-times'),
+      fetch(`${API_BASE}/api/rates`),
+      fetch(`${API_BASE}/api/reminders`),
+      fetch(`${API_BASE}/api/utilities`),
+      fetch(`${API_BASE}/api/ikomek`),
+      fetch(`${API_BASE}/api/prayer-times`),
     ]);
     if (rRes.ok) {
       setRatesData((await rRes.json()) as ExchangeRatesData);
@@ -176,7 +177,7 @@ export function QalaCityInfoModule({
   const handleAddReminder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!remTitle.trim()) return;
-    const res = await fetch('/api/reminders', {
+    const res = await fetch(`${API_BASE}/api/reminders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: remTitle.trim(), remindAt: remTime, category: remCat }),
@@ -189,7 +190,7 @@ export function QalaCityInfoModule({
   };
 
   const toggleReminder = async (item: ReminderItem) => {
-    await fetch(`/api/reminders/${encodeURIComponent(item.id)}`, {
+    await fetch(`${API_BASE}/api/reminders/${encodeURIComponent(item.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ done: !item.done }),
@@ -198,7 +199,7 @@ export function QalaCityInfoModule({
   };
 
   const deleteReminder = async (id: string) => {
-    await fetch(`/api/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadAll();
   };
 
@@ -261,7 +262,7 @@ export function QalaCityInfoModule({
 
   const saveUtilityReading = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/utilities', {
+    const res = await fetch(`${API_BASE}/api/utilities`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -280,14 +281,14 @@ export function QalaCityInfoModule({
   };
 
   const deleteUtility = async (id: string) => {
-    await fetch(`/api/utilities/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/utilities/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadAll();
   };
 
   const handleSubmitIkomek = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repTitle.trim()) return;
-    const res = await fetch('/api/ikomek', {
+    const res = await fetch(`${API_BASE}/api/ikomek`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -312,7 +313,7 @@ export function QalaCityInfoModule({
         : rep.status === 'В работе'
         ? 'Решено'
         : 'Принято';
-    await fetch(`/api/ikomek/${encodeURIComponent(rep.id)}`, {
+    await fetch(`${API_BASE}/api/ikomek/${encodeURIComponent(rep.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: next }),
@@ -321,7 +322,7 @@ export function QalaCityInfoModule({
   };
 
   const deleteIkomek = async (id: string) => {
-    await fetch(`/api/ikomek/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/ikomek/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadAll();
   };
 
@@ -1301,7 +1302,7 @@ export function QalaCityInfoModule({
                       <button
                         type="button"
                         onClick={async () => {
-                          await fetch('/api/plans', {
+                          await fetch(`${API_BASE}/api/plans`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({

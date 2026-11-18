@@ -94,6 +94,7 @@ import type {
   WalletTransaction,
   WeatherData,
 } from './types/qala';
+import { API_BASE } from './apiBase';
 
 interface SpeechRecognitionInstance {
   lang: string;
@@ -332,7 +333,7 @@ export default function App() {
     const next: ThemeMode = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     try {
-      await fetch('/api/settings', {
+      await fetch(`${API_BASE}/api/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: next }),
@@ -353,7 +354,7 @@ export default function App() {
   }, [section, selectedTvChannel]);
 
   const refreshProfile = useCallback(async () => {
-    const r = await fetch('/api/profile');
+    const r = await fetch(`${API_BASE}/api/profile`);
     if (r.ok) {
       const d = (await r.json()) as { profile: QalaProfile };
       setProfile(d.profile);
@@ -361,7 +362,7 @@ export default function App() {
   }, []);
 
   const refreshApartments = useCallback(async () => {
-    const r = await fetch('/api/apartments');
+    const r = await fetch(`${API_BASE}/api/apartments`);
     if (r.ok) {
       const d = (await r.json()) as { apartments: ApartmentListing[] };
       setApartments(d.apartments || []);
@@ -369,7 +370,7 @@ export default function App() {
   }, []);
 
   const refreshMarket = useCallback(async () => {
-    const r = await fetch('/api/market');
+    const r = await fetch(`${API_BASE}/api/market`);
     if (r.ok) {
       const d = (await r.json()) as { items: MarketListing[] };
       setMarketItems(d.items || []);
@@ -377,7 +378,7 @@ export default function App() {
   }, []);
 
   const refreshDelivery = useCallback(async () => {
-    const r = await fetch('/api/delivery/stops');
+    const r = await fetch(`${API_BASE}/api/delivery/stops`);
     if (r.ok) {
       const d = (await r.json()) as { stops: DeliveryStop[] };
       setDeliveryStops(d.stops || []);
@@ -385,7 +386,7 @@ export default function App() {
   }, []);
 
   const refreshWalletAndPlans = useCallback(async () => {
-    const [wRes, pRes] = await Promise.all([fetch('/api/wallet'), fetch('/api/plans')]);
+    const [wRes, pRes] = await Promise.all([fetch(`${API_BASE}/api/wallet`), fetch(`${API_BASE}/api/plans`)]);
     if (wRes.ok) {
       const w = (await wRes.json()) as {
         transactions: WalletTransaction[];
@@ -401,7 +402,7 @@ export default function App() {
   }, []);
 
   const refreshFavorites = useCallback(async () => {
-    const r = await fetch('/api/favorites');
+    const r = await fetch(`${API_BASE}/api/favorites`);
     if (r.ok) {
       const d = (await r.json()) as { favorites: CinemaMovie[] };
       setFavoriteMovies(d.favorites || []);
@@ -416,13 +417,13 @@ export default function App() {
       refreshDelivery(),
       refreshWalletAndPlans(),
       refreshFavorites(),
-      fetch('/api/weather')
+      fetch(`${API_BASE}/api/weather`)
         .then((r) => (r.ok ? r.json() : null))
         .then((w: WeatherData | null) => {
           if (w) setWeather(w);
         })
         .catch(() => {}),
-      fetch('/api/settings')
+      fetch(`${API_BASE}/api/settings`)
         .then((r) => (r.ok ? r.json() : null))
         .then((s: { theme?: ThemeMode } | null) => {
           if (s?.theme === 'dark' || s?.theme === 'light') {
@@ -523,7 +524,7 @@ export default function App() {
     category: WalletTransaction['category'],
     amount: number
   ) => {
-    await fetch('/api/wallet', {
+    await fetch(`${API_BASE}/api/wallet`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, category, amount }),
@@ -1989,7 +1990,7 @@ export default function App() {
               items={marketItems}
               onRefresh={refreshMarket}
               onBuyOrReserve={async (item) => {
-                await fetch(`/api/market/${encodeURIComponent(item.id)}`, {
+                await fetch(`${API_BASE}/api/market/${encodeURIComponent(item.id)}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ status: 'reserved' }),
@@ -2069,12 +2070,12 @@ export default function App() {
               onToggleFavorite={async (movie) => {
                 const exists = favoriteMovies.some((f) => f.id === movie.id);
                 if (exists) {
-                  await fetch(`/api/favorites/${encodeURIComponent(movie.id)}`, {
+                  await fetch(`${API_BASE}/api/favorites/${encodeURIComponent(movie.id)}`, {
                     method: 'DELETE',
                   });
                   notify(`«${movie.title}» удалён из избранного`);
                 } else {
-                  await fetch('/api/favorites', {
+                  await fetch(`${API_BASE}/api/favorites`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(movie),
@@ -2092,7 +2093,7 @@ export default function App() {
                   'Кино',
                   price
                 );
-                await fetch('/api/plans', {
+                await fetch(`${API_BASE}/api/plans`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -2167,7 +2168,7 @@ export default function App() {
                 setSection('map');
               }}
               onLogWorkoutPlan={async (title) => {
-                await fetch('/api/plans', {
+                await fetch(`${API_BASE}/api/plans`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ title, dateLabel: 'Выполнено' }),
@@ -2187,11 +2188,11 @@ export default function App() {
               plans={plans}
               onAddTransaction={addWalletTransaction}
               onDeleteTransaction={async (id) => {
-                await fetch(`/api/wallet/${encodeURIComponent(id)}`, { method: 'DELETE' });
+                await fetch(`${API_BASE}/api/wallet/${encodeURIComponent(id)}`, { method: 'DELETE' });
                 await refreshWalletAndPlans();
               }}
               onAddPlan={async (title, dateLabel) => {
-                await fetch('/api/plans', {
+                await fetch(`${API_BASE}/api/plans`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ title, dateLabel }),
@@ -2199,7 +2200,7 @@ export default function App() {
                 await refreshWalletAndPlans();
               }}
               onTogglePlan={async (id, completed) => {
-                await fetch(`/api/plans/${encodeURIComponent(id)}`, {
+                await fetch(`${API_BASE}/api/plans/${encodeURIComponent(id)}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ completed }),
@@ -2207,7 +2208,7 @@ export default function App() {
                 await refreshWalletAndPlans();
               }}
               onDeletePlan={async (id) => {
-                await fetch(`/api/plans/${encodeURIComponent(id)}`, { method: 'DELETE' });
+                await fetch(`${API_BASE}/api/plans/${encodeURIComponent(id)}`, { method: 'DELETE' });
                 await refreshWalletAndPlans();
               }}
             />
@@ -2219,7 +2220,7 @@ export default function App() {
             <QalaIdModule
               profile={profile}
               onSave={async (updated) => {
-                const res = await fetch('/api/profile', {
+                const res = await fetch(`${API_BASE}/api/profile`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updated),

@@ -22,6 +22,7 @@ import type {
   FoodOrder,
 } from '../types/qala';
 import { AstanaMap } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 const CATEGORIES: FoodCategory[] = [
   'Все',
@@ -83,7 +84,7 @@ export function QalaFoodModule({
 
   const loadOrders = useCallback(async () => {
     try {
-      const res = await fetch('/api/food/orders');
+      const res = await fetch(`${API_BASE}/api/food/orders`);
       if (res.ok) {
         const data = (await res.json()) as { orders: FoodOrder[] };
         setOrders(data.orders || []);
@@ -122,7 +123,7 @@ export function QalaFoodModule({
     }
     try {
       const res = await fetch(
-        `/api/geo/reverse?lat=${currentLocation.lat}&lng=${currentLocation.lng}`
+        `${API_BASE}/api/geo/reverse?lat=${currentLocation.lat}&lng=${currentLocation.lng}`
       );
       if (res.ok) {
         const d = (await res.json()) as { address?: string };
@@ -195,7 +196,7 @@ export function QalaFoodModule({
       };
       const finalAddress = address.trim() || defaultAddress;
 
-      const res = await fetch('/api/food/orders', {
+      const res = await fetch(`${API_BASE}/api/food/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -394,7 +395,7 @@ export function QalaFoodModule({
                   setDeliveryCoord([lat, lng]);
                   setAddress(`Астана (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
                   try {
-                    const r = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+                    const r = await fetch(`${API_BASE}/api/geo/reverse?lat=${lat}&lng=${lng}`);
                     if (r.ok) {
                       const d = (await r.json()) as { address?: string };
                       if (d.address) {

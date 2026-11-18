@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { API_BASE } from '../apiBase';
 
 interface SourceManifest {
   count: number;
@@ -33,7 +34,7 @@ export function AppInstallCenter() {
 
   useEffect(() => {
     if (!openModal || manifest) return;
-    fetch('/api/download-source/manifest')
+    fetch(`${API_BASE}/api/download-source/manifest`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: SourceManifest | null) => {
         if (data) setManifest(data);
@@ -50,7 +51,7 @@ export function AppInstallCenter() {
   const handleDownloadAllFiles = async () => {
     setDownloadingZip(true);
     try {
-      const response = await fetch('/api/download-source');
+      const response = await fetch(`${API_BASE}/api/download-source`);
       if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

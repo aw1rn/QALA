@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ASTANA_CENTER } from '../data/astanaData';
 import type { CurrentGeoState } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 const MANUAL_GEO_KEY = 'qala_manual_geo_v1';
 
@@ -46,7 +47,7 @@ export function useCurrentLocation() {
   const reverseGeocode = useCallback(
     async (lat: number, lng: number): Promise<{ address: string; district: string; nearestLandmark: string }> => {
       try {
-        const res = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+        const res = await fetch(`${API_BASE}/api/geo/reverse?lat=${lat}&lng=${lng}`);
         if (res.ok) {
           const data = (await res.json()) as {
             address?: string;
@@ -100,7 +101,7 @@ export function useCurrentLocation() {
   const fallbackToServerIp = useCallback(
     async (errorReason?: string): Promise<CurrentGeoState> => {
       try {
-        const res = await fetch('/api/geo/current');
+        const res = await fetch(`${API_BASE}/api/geo/current`);
         if (res.ok) {
           const d = (await res.json()) as {
             lat?: number;

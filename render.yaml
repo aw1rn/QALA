@@ -1,0 +1,16 @@
+# Сервер QALA на Render (https://render.com): New → Blueprint → выбрать этот репозиторий.
+services:
+  - type: web
+    name: qala
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TOMTOM_API_KEY
+        sync: false

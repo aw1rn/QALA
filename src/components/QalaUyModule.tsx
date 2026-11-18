@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ASTANA_CENTER } from '../data/astanaData';
 import type { ApartmentListing, AstanaMapLayers } from '../types/qala';
 import { AstanaMap } from './AstanaMap';
+import { API_BASE } from '../apiBase';
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -68,7 +69,7 @@ export function QalaUyModule({
   const [termYears, setTermYears] = useState(15);
 
   useEffect(() => {
-    fetch('/api/map/layers')
+    fetch(`${API_BASE}/api/map/layers`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: AstanaMapLayers | null) => {
         if (d) setLayers(d);
@@ -164,7 +165,7 @@ export function QalaUyModule({
   }, [filteredApartments]);
 
   const handleToggleFavorite = async (apt: ApartmentListing) => {
-    await fetch(`/api/apartments/${encodeURIComponent(apt.id)}`, {
+    await fetch(`${API_BASE}/api/apartments/${encodeURIComponent(apt.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isFavorite: !apt.isFavorite }),
@@ -174,7 +175,7 @@ export function QalaUyModule({
   };
 
   const handleHide = async (apt: ApartmentListing) => {
-    await fetch(`/api/apartments/${encodeURIComponent(apt.id)}`, {
+    await fetch(`${API_BASE}/api/apartments/${encodeURIComponent(apt.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isHidden: true }),
@@ -185,7 +186,7 @@ export function QalaUyModule({
   };
 
   const handleDelete = async (apt: ApartmentListing) => {
-    await fetch(`/api/apartments/${encodeURIComponent(apt.id)}`, {
+    await fetch(`${API_BASE}/api/apartments/${encodeURIComponent(apt.id)}`, {
       method: 'DELETE',
     });
     setSelectedAptId(null);
@@ -201,14 +202,14 @@ export function QalaUyModule({
     setAreaMin('');
     setStreetQuery('');
     setOnlyFavorites(false);
-    await fetch('/api/apartments/reset-hidden', { method: 'POST' });
+    await fetch(`${API_BASE}/api/apartments/reset-hidden`, { method: 'POST' });
     await onRefresh();
   };
 
   const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddress.trim() || !newPrice.trim()) return;
-    await fetch('/api/apartments', {
+    await fetch(`${API_BASE}/api/apartments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { ASTANA_EVENTS_AFISHA } from '../data/astanaData';
 import type { PlanItem, WalletTransaction } from '../types/qala';
+import { API_BASE } from '../apiBase';
 
 interface RadioStation {
   id: string;
@@ -31,7 +32,7 @@ const RADIO_STATIONS: RadioStation[] = [
     name: 'Love Radio Казахстан',
     genre: 'Поп-хиты и танцевальная музыка · Астана 102.3 FM · Алматы 103.5 FM',
     freq: '102.3 FM',
-    streamUrl: `/api/radio/proxy?url=${encodeURIComponent('http://stream.gakku.kz:8000/love128.mp3')}`,
+    streamUrl: `${API_BASE}/api/radio/proxy?url=${encodeURIComponent('http://stream.gakku.kz:8000/love128.mp3')}`,
     isLiveStream: true,
   },
   {
