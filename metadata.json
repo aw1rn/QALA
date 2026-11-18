@@ -1,6 +1,6 @@
 {
-  "name": "QALA — городской супер-сервис Астаны",
-  "description": "Карта Астаны, жильё Qala Үй, Market, Delivery, Qala TV, Qino, киноафиша и Qala AI в одном приложении.",
+  "name": "Remix Remix Киноэкран — Десктоп ТВ Плеер",
+  "description": "Десктопный ТВ-плеер для поиска фильмов онлайн, потокового просмотра и сохранения избранного в локальной базе данных SQLite.",
   "requestFramePermissions": [
     "geolocation"
   ],

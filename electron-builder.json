@@ -6,42 +6,23 @@
   },
   "files": [
     "dist/**/*",
-    "electron/main.cjs",
-    "electron/preload.cjs",
-    "electron/icon.png",
-    "!dist/sw.js",
-    "!dist/workbox-*.js"
+    "electron/main.cjs"
   ],
   "extraMetadata": {
     "main": "electron/main.cjs"
   },
-  "asar": true,
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      },
-      {
-        "target": "portable",
-        "arch": [
-          "x64"
-        ]
+        "arch": ["x64"]
       }
     ],
-    "icon": "public/pwa-512x512.png",
-    "signAndEditExecutable": false
+    "icon": "public/pwa-512x512.png"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "shortcutName": "QALA",
-    "artifactName": "QALA-Setup-${version}.exe"
-  },
-  "portable": {
-    "artifactName": "QALA-${version}-portable.exe"
-  },
-  "publish": null
+    "shortcutName": "QALA"
+  }
 }

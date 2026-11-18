@@ -6,8 +6,6 @@ import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import crypto, { randomBytes } from 'node:crypto';
-import zlib from 'node:zlib';
 import { createServer as createViteServer } from 'vite';
 import {
   ASTANA_CENTER,
@@ -32,7 +30,6 @@ import type {
   TvChannel,
   WalletTransaction,
 } from './src/types/qala.ts';
-import { buildWorldChannels, WORLD_PLAYLIST_PATH, WORLD_SOURCE_ID } from './src/lib/iptvWorld.ts';
 
 const PORT = 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -160,18 +157,6 @@ db.exec(`
     channel_count INTEGER NOT NULL DEFAULT 0,
     last_synced_at TEXT NOT NULL,
     created_at TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS board_posts (
-    id TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL DEFAULT '',
-    contact TEXT NOT NULL DEFAULT '',
-    lat REAL,
-    lng REAL,
-    owner TEXT NOT NULL,
-    created INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS app_settings (
@@ -833,48 +818,6 @@ const ARCHIVE_FALLBACK_MOVIES = [
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
-
-  /* ---- Защита админки: токен после ввода PIN, PIN по умолчанию нужно сменить ---- */
-  const adminTokens = new Map<string, number>();
-  const ADMIN_TTL = 12 * 60 * 60 * 1000;
-  const readAdminPin = () =>
-    ((db.prepare(`SELECT value FROM app_settings WHERE key = 'admin_pin'`).get() as { value: string } | undefined)?.value) || '1234';
-  const issueAdminToken = () => {
-    const token = randomBytes(24).toString('hex');
-    adminTokens.set(token, Date.now() + ADMIN_TTL);
-    return token;
-  };
-  const isAdminRequest = (req: express.Request) => {
-    const token = String(req.headers['x-qala-admin'] || '');
-    const exp = adminTokens.get(token);
-    if (!exp) return false;
-    if (exp < Date.now()) {
-      adminTokens.delete(token);
-      return false;
-    }
-    return true;
-  };
-  const PROTECTED: Array<[string, RegExp]> = [
-    ['GET', /^\/api\/download-source/],
-    ['GET', /^\/api\/admin\/backup/],
-    ['PUT', /^\/api\/tv\/channels\//],
-    ['DELETE', /^\/api\/tv\/channels\//],
-    ['DELETE', /^\/api\/tv\/m3u\//],
-    ['POST', /^\/api\/tv\/m3u\/import-kz-free/],
-  ];
-  app.use((req, res, next) => {
-    const hit = PROTECTED.some(([m, re]) => m === req.method && re.test(req.path));
-    if (!hit) return next();
-    if (!isAdminRequest(req)) {
-      res.status(401).json({ error: 'Нужен вход в админку по PIN-коду' });
-      return;
-    }
-    if (readAdminPin() === '1234') {
-      res.status(403).json({ error: 'Смените PIN-код по умолчанию (1234) в админке' });
-      return;
-    }
-    next();
-  });
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', dbPath: DB_PATH });
@@ -1663,57 +1606,6 @@ async function startServer() {
     }
   };
 
-  // Миграция: заголовки, которые требуют некоторые IPTV-потоки (Referer / User-Agent)
-  {
-    const cols = new Set(
-      (db.prepare('PRAGMA table_info(tv_channels)').all() as Array<{ name: string }>).map((c) => c.name)
-    );
-    if (!cols.has('stream_referrer')) {
-      db.exec("ALTER TABLE tv_channels ADD COLUMN stream_referrer TEXT NOT NULL DEFAULT ''");
-    }
-    if (!cols.has('stream_user_agent')) {
-      db.exec("ALTER TABLE tv_channels ADD COLUMN stream_user_agent TEXT NOT NULL DEFAULT ''");
-    }
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_tv_channels_order ON tv_channels (is_active, sort_order);
-      CREATE INDEX IF NOT EXISTS idx_tv_channels_source ON tv_channels (source_m3u);
-    `);
-  }
-
-  // Кэш ответа /api/tv/channels (JSON + gzip) и карта хост → заголовки для прокси.
-  // Сбрасывается при любом изменении каналов.
-  let tvChannelsCache: { json: string; gzip: Buffer; etag: string } | null = null;
-  let tvHostHeaders: Map<string, { referrer: string; userAgent: string }> | null = null;
-  const invalidateTvCaches = () => {
-    tvChannelsCache = null;
-    tvHostHeaders = null;
-  };
-  const getTvHostHeaders = () => {
-    if (tvHostHeaders) return tvHostHeaders;
-    const map = new Map<string, { referrer: string; userAgent: string }>();
-    const rows = db
-      .prepare(
-        "SELECT stream_url, stream_referrer, stream_user_agent FROM tv_channels WHERE stream_referrer != '' OR stream_user_agent != ''"
-      )
-      .all() as Array<{ stream_url: string; stream_referrer: string; stream_user_agent: string }>;
-    for (const r of rows) {
-      try {
-        map.set(new URL(r.stream_url).hostname, {
-          referrer: r.stream_referrer,
-          userAgent: r.stream_user_agent,
-        });
-      } catch {
-        // пропускаем битые URL
-      }
-    }
-    tvHostHeaders = map;
-    return map;
-  };
-  app.use('/api/tv', (req, _res, next) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') invalidateTvCaches();
-    next();
-  });
-
   const mapTvRow = (row: Record<string, unknown>): TvChannel => {
     const qAuto = String(row.quality_auto || '').trim();
     const q720 = String(row.quality_720 || '').trim();
@@ -1739,32 +1631,20 @@ async function startServer() {
     };
   };
 
-  type ParsedM3uChannel = {
-    id?: string;
-    name: string;
-    category: string;
-    logoUrl: string;
-    streamUrl: string;
-    isRegional: boolean;
-    subtitle?: string;
-    referrer?: string;
-    userAgent?: string;
-  };
-
-  const parseM3uContent = (rawText: string, sourceLabel: string): ParsedM3uChannel[] => {
+  const parseM3uContent = (rawText: string, sourceLabel: string) => {
     const lines = rawText
       .replace(/\r\n/g, '\n')
       .split('\n')
       .map((l) => l.trim());
-    const parsed: ParsedM3uChannel[] = [];
-
-    let pendingMeta: {
+    const parsed: Array<{
       name: string;
       category: string;
       logoUrl: string;
-      referrer?: string;
-      userAgent?: string;
-    } | null = null;
+      streamUrl: string;
+      isRegional: boolean;
+    }> = [];
+
+    let pendingMeta: { name: string; category: string; logoUrl: string } | null = null;
     const categoryRuMap: Record<string, string> = {
       General: 'Национальный',
       News: 'Новости',
@@ -1784,34 +1664,16 @@ async function startServer() {
       if (line.startsWith('#EXTINF:')) {
         const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
         const groupMatch = line.match(/group-title="([^"]*)"/i);
-        const refMatch = line.match(/http-referrer="([^"]*)"/i);
-        const uaMatch = line.match(/http-user-agent="([^"]*)"/i);
-        // Название — после запятой, идущей за атрибутами key="value"
-        const afterAttrs = line
-          .replace(/^#EXTINF:\s*-?\d+(?:\.\d+)?/, '')
-          .replace(/^(?:\s*[\w-]+="[^"]*")*/, '');
-        const commaIdx = afterAttrs.indexOf(',');
-        const rawName = commaIdx >= 0 ? afterAttrs.slice(commaIdx + 1).trim() : 'Канал ТВ';
-        const cleanName =
-          rawName.replace(/\s*\[Not 24\/7\]|\s*\[Geo-blocked\]/gi, '').trim() || 'Канал ТВ';
+        const commaIdx = line.lastIndexOf(',');
+        const rawName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : 'Канал ТВ';
+        const cleanName = rawName.replace(/\s*\[Not 24\/7\]|\s*\[Geo-blocked\]/gi, '').trim() || 'Канал ТВ';
         const rawGroup = (groupMatch?.[1] || 'Общий').split(';')[0].trim();
         const category = categoryRuMap[rawGroup] || rawGroup || 'Общий';
         pendingMeta = {
           name: cleanName,
           category,
           logoUrl: logoMatch?.[1]?.trim() || '',
-          referrer: refMatch?.[1]?.trim() || undefined,
-          userAgent: uaMatch?.[1]?.trim() || undefined,
         };
-      } else if (line.startsWith('#EXTVLCOPT:') && pendingMeta) {
-        const opt = line.slice('#EXTVLCOPT:'.length);
-        const eq = opt.indexOf('=');
-        if (eq > 0) {
-          const key = opt.slice(0, eq).trim().toLowerCase();
-          const val = opt.slice(eq + 1).trim();
-          if (key === 'http-referrer') pendingMeta.referrer = val;
-          if (key === 'http-user-agent') pendingMeta.userAgent = val;
-        }
       } else if (!line.startsWith('#')) {
         if (/^https?:\/\//i.test(line)) {
           const meta = pendingMeta || {
@@ -1831,8 +1693,6 @@ async function startServer() {
             logoUrl: meta.logoUrl,
             streamUrl: line,
             isRegional,
-            referrer: 'referrer' in meta ? meta.referrer : undefined,
-            userAgent: 'userAgent' in meta ? meta.userAgent : undefined,
           });
         }
         pendingMeta = null;
@@ -1846,37 +1706,8 @@ async function startServer() {
     const sql = includeInactive
       ? 'SELECT * FROM tv_channels ORDER BY sort_order ASC, created_at DESC'
       : 'SELECT * FROM tv_channels WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC';
-    if (includeInactive) {
-      const rows = db.prepare(sql).all() as Array<Record<string, unknown>>;
-      res.json({ channels: rows.map(mapTvRow) });
-      return;
-    }
-
-    // Публичный список (8000+ каналов): собираем один раз, отдаём сжатым и с ETag
-    if (!tvChannelsCache) {
-      const rows = db.prepare(sql).all() as Array<Record<string, unknown>>;
-      const json = JSON.stringify({ channels: rows.map(mapTvRow) });
-      tvChannelsCache = {
-        json,
-        gzip: zlib.gzipSync(json, { level: 6 }),
-        etag: `"tv-${crypto.createHash('sha1').update(json).digest('hex').slice(0, 16)}"`,
-      };
-    }
-    const cache = tvChannelsCache;
-    res.setHeader('ETag', cache.etag);
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Vary', 'Accept-Encoding');
-    if (req.headers['if-none-match'] === cache.etag) {
-      res.status(304).end();
-      return;
-    }
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    if (/\bgzip\b/.test(String(req.headers['accept-encoding'] || ''))) {
-      res.setHeader('Content-Encoding', 'gzip');
-      res.send(cache.gzip);
-    } else {
-      res.send(cache.json);
-    }
+    const rows = db.prepare(sql).all() as Array<Record<string, unknown>>;
+    res.json({ channels: rows.map(mapTvRow) });
   });
 
   app.post('/api/tv/channels', (req, res) => {
@@ -2031,81 +1862,36 @@ async function startServer() {
       INSERT OR REPLACE INTO tv_channels (
         id, name, category, current_show, next_show, accent_color,
         stream_url, logo_url, quality_auto, quality_720, quality_1080,
-        is_regional, source_m3u, is_active, sort_order, created_at,
-        stream_referrer, stream_user_agent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, 1, ?, ?, ?, ?)
+        is_regional, source_m3u, is_active, sort_order, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, 1, ?, ?)
     `);
 
-    // Одна транзакция на весь плейлист: тысячи INSERT за доли секунды
-    db.exec('BEGIN');
-    try {
-      parsed.forEach((ch, idx) => {
-        const slug = ch.name
-          .toLowerCase()
-          .replace(/[^a-z0-9а-яё]+/gi, '-')
-          .replace(/^-|-$/g, '')
-          .slice(0, 28);
-        const id = ch.id || `${finalSourceId}-${idx}-${slug || 'ch'}`;
-        const color = ACCENT_PALETTE[idx % ACCENT_PALETTE.length];
-        insertStmt.run(
-          id,
-          ch.name,
-          ch.category,
-          ch.subtitle || `Плейлист: ${sourceName}`,
-          'Прямой эфир',
-          color,
-          ch.streamUrl,
-          ch.logoUrl,
-          ch.isRegional ? 1 : 0,
-          finalSourceId,
-          order++,
-          nowIso,
-          ch.referrer || '',
-          ch.userAgent || ''
-        );
-      });
-      db.exec('COMMIT');
-    } catch (err) {
-      db.exec('ROLLBACK');
-      throw err;
-    }
+    parsed.forEach((ch, idx) => {
+      const slug = ch.name
+        .toLowerCase()
+        .replace(/[^a-z0-9а-яё]+/gi, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 28);
+      const id = `${finalSourceId}-${idx}-${slug || 'ch'}`;
+      const color = ACCENT_PALETTE[idx % ACCENT_PALETTE.length];
+      insertStmt.run(
+        id,
+        ch.name,
+        ch.category,
+        `Плейлист: ${sourceName}`,
+        'Прямой эфир',
+        color,
+        ch.streamUrl,
+        ch.logoUrl,
+        ch.isRegional ? 1 : 0,
+        finalSourceId,
+        order++,
+        nowIso
+      );
+    });
 
-    invalidateTvCaches();
     return finalSourceId;
   };
-
-  // Мировой плейлист iptv-org (public/tv/iptv-org-all.m3u — тот же файл попадает в EXE/APK):
-  // импортируется при старте, разбор общий с клиентом (src/lib/iptvWorld.ts), id каналов совпадают.
-  const WORLD_SOURCE_NAME = 'Мировое IPTV (iptv-org) v2'; // смена версии → переимпорт
-  const importWorldPlaylistIfNeeded = () => {
-    const filePath = path.join(process.cwd(), 'public', WORLD_PLAYLIST_PATH);
-    if (!fs.existsSync(filePath)) return;
-    const stat = fs.statSync(filePath);
-    const existing = db
-      .prepare('SELECT name, last_synced_at FROM m3u_sources WHERE id = ?')
-      .get(WORLD_SOURCE_ID) as { name: string; last_synced_at: string } | undefined;
-    // Переимпорт только если файл новее последней синхронизации или сменилась версия разбора
-    if (
-      existing &&
-      existing.name === WORLD_SOURCE_NAME &&
-      new Date(existing.last_synced_at).getTime() >= stat.mtimeMs
-    ) {
-      return;
-    }
-
-    const started = Date.now();
-    const parsed = buildWorldChannels(fs.readFileSync(filePath, 'utf8')).map((ch) => ({
-      ...ch,
-      isRegional: false,
-    }));
-    saveImportedM3uChannels(WORLD_SOURCE_ID, WORLD_SOURCE_NAME, '', parsed);
-    console.log(`[tv] Импортирован мировой плейлист: ${parsed.length} каналов за ${Date.now() - started} мс`);
-  };
-  try {
-    importWorldPlaylistIfNeeded();
-  } catch (err) {
-    console.error('[tv] Ошибка импорта мирового плейлиста:', err);
-  }
 
   app.post('/api/tv/m3u/import', async (req, res) => {
     const { name, url, rawContent } = req.body as {
@@ -2228,24 +2014,12 @@ async function startServer() {
     }
 
     try {
-      const hostHeaders = getTvHostHeaders();
-      const extra = hostHeaders.get(target.hostname);
-      const upstreamHeaders: Record<string, string> = {
-        'User-Agent':
-          extra?.userAgent ||
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      };
-      if (extra?.referrer) {
-        upstreamHeaders.Referer = extra.referrer;
-        try {
-          upstreamHeaders.Origin = new URL(extra.referrer).origin;
-        } catch {
-          // некорректный referrer — без Origin
-        }
-      }
       const upstream = await fetch(target.toString(), {
         signal: AbortSignal.timeout(12000),
-        headers: upstreamHeaders,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
       });
       if (!upstream.ok) {
         res.status(upstream.status).send(`Upstream error: ${upstream.status}`);
@@ -2280,10 +2054,7 @@ async function startServer() {
               });
             }
             try {
-              const absUrl = new URL(trimmed, baseUrl);
-              // Сегменты на другом CDN-хосте получают те же заголовки, что и плейлист
-              if (extra && !hostHeaders.has(absUrl.hostname)) hostHeaders.set(absUrl.hostname, extra);
-              const abs = absUrl.toString();
+              const abs = new URL(trimmed, baseUrl).toString();
               return `/api/tv/proxy?url=${encodeURIComponent(abs)}`;
             } catch {
               return line;
@@ -2296,41 +2067,11 @@ async function startServer() {
         return;
       }
 
-      // Сегменты стримим сразу, не дожидаясь полной загрузки в память
+      const buf = Buffer.from(await upstream.arrayBuffer());
       res.setHeader('Content-Type', contentType);
-      const len = upstream.headers.get('content-length');
-      if (len) res.setHeader('Content-Length', len);
-      if (!upstream.body) {
-        res.end();
-        return;
-      }
-      const reader = upstream.body.getReader();
-      let clientGone = false;
-      res.on('close', () => {
-        clientGone = true;
-        reader.cancel().catch(() => {});
-      });
-      try {
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done || clientGone) break;
-          if (!res.write(value)) {
-            await new Promise<void>((resolve) => {
-              res.once('drain', resolve);
-              res.once('close', resolve);
-            });
-          }
-        }
-      } catch {
-        // обрыв соединения с источником или клиентом
-      }
-      if (!res.writableEnded) res.end();
+      res.send(buf);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка проксирования потока';
-      if (res.headersSent) {
-        if (!res.writableEnded) res.end();
-        return;
-      }
       res.status(502).json({ error: msg });
     }
   });
@@ -2712,7 +2453,7 @@ async function startServer() {
       .get() as { value: string } | undefined;
     const current = row?.value || '1234';
     if (String(pin || '').trim() === current) {
-      res.json({ ok: true, token: issueAdminToken(), mustChangePin: current === '1234' });
+      res.json({ ok: true });
       return;
     }
     res.status(401).json({ ok: false, error: 'Неверный PIN-код' });
@@ -2737,54 +2478,6 @@ async function startServer() {
       cleanNew
     );
     res.json({ ok: true });
-  });
-
-  /* Доска города: попутчики, находки, гололёд, ОСИ, волонтёры, питомцы, отзывы, подработки */
-  const BOARD_TYPES = new Set(['ride', 'lost', 'ice', 'osi', 'volunteer', 'pet', 'review', 'gig', 'run']);
-  app.get('/api/board', (req, res) => {
-    const type = String(req.query.type || '');
-    const since = Date.now() - (type === 'ice' ? 2 : 30) * 86400000;
-    const rows = (BOARD_TYPES.has(type)
-      ? db.prepare(`SELECT id, type, title, body, contact, lat, lng, created FROM board_posts WHERE type = ? AND created > ? ORDER BY created DESC LIMIT 100`).all(type, since)
-      : db.prepare(`SELECT id, type, title, body, contact, lat, lng, created FROM board_posts WHERE created > ? ORDER BY created DESC LIMIT 100`).all(Date.now() - 30 * 86400000));
-    res.json(rows);
-  });
-  app.post('/api/board', (req, res) => {
-    const b = req.body as { type?: string; title?: string; body?: string; contact?: string; lat?: number; lng?: number; owner?: string };
-    const type = String(b.type || '');
-    const title = String(b.title || '').trim().slice(0, 120);
-    const owner = String(b.owner || '').slice(0, 64);
-    if (!BOARD_TYPES.has(type) || title.length < 3 || owner.length < 8) {
-      res.status(400).json({ error: 'Заполните заголовок (от 3 символов)' });
-      return;
-    }
-    const id = randomBytes(8).toString('hex');
-    const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
-    const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
-    db.prepare(`INSERT INTO board_posts (id, type, title, body, contact, lat, lng, owner, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      id, type, title, String(b.body || '').slice(0, 1000), String(b.contact || '').slice(0, 80), lat, lng, owner, Date.now()
-    );
-    res.json({ ok: true, id });
-  });
-  app.delete('/api/board/:id', (req, res) => {
-    const owner = String(req.headers['x-qala-owner'] || '');
-    const r = isAdminRequest(req)
-      ? db.prepare(`DELETE FROM board_posts WHERE id = ?`).run(req.params.id)
-      : db.prepare(`DELETE FROM board_posts WHERE id = ? AND owner = ?`).run(req.params.id, owner);
-    res.json({ ok: Number(r.changes) > 0 });
-  });
-
-  /* Резервная копия базы SQLite (только для админа) */
-  app.get('/api/admin/backup', (_req, res) => {
-    try {
-      const tmp = path.join(DATA_DIR, `backup-${Date.now()}.db`);
-      db.exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
-      res.download(tmp, `qala-backup-${new Date().toISOString().slice(0, 10)}.db`, () => {
-        fs.rm(tmp, { force: true }, () => undefined);
-      });
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'Не удалось сделать копию' });
-    }
   });
 
   app.get('/api/settings', (_req, res) => {
